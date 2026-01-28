@@ -70,69 +70,68 @@ export default function Home() {
     setError(null);
     setStatusMessage('Starting download...');
 
-    console.log({ selectedVideo, format, quality });
-
     try {
-      const response = await fetch('/api/download', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          videoId: selectedVideo.id,
-          format,
-          quality,
-        }),
-      });
+      const downloadApiUrl = `/api/download?videoId=${selectedVideo.id}&format=${format}&quality=${quality}`;
+      
+      const response = await fetch(downloadApiUrl);
 
       if (!response.ok) {
-        throw new Error('Download request failed');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Download failed');
       }
 
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
+      const contentLength = response.headers.get('Content-Length');
+      const filename = decodeURIComponent(response.headers.get('X-Filename') || `video.${format}`);
+      
+      const total = contentLength ? parseInt(contentLength, 10) : 0;
+      let loaded = 0;
 
+      setStatusMessage('Downloading...');
+
+      const reader = response.body?.getReader();
       if (!reader) {
         throw new Error('No response body');
       }
 
+      const chunks: BlobPart[] = [];
+
       while (true) {
         const { done, value } = await reader.read();
+        
         if (done) break;
-
-        const chunk = decoder.decode(value);
-        const lines = chunk.split('\n');
-
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            try {
-              const data = JSON.parse(line.slice(6));
-
-              if (data.status === 'starting' || data.status === 'preparing') {
-                setStatusMessage(data.message || 'Preparing...');
-                setDownloadProgress(data.percent || 0);
-              } else if (data.status === 'downloading') {
-                setStatusMessage('Downloading...');
-                setDownloadProgress(data.percent);
-                setDownloadInfo(data);
-              } else if (data.status === 'complete') {
-                setStatusMessage('Download complete!');
-                setDownloadProgress(100);
-                setDownloadUrl(data.downloadUrl);
-                setIsDownloading(false);
-              } else if (data.status === 'error') {
-                setError(data.message || 'Download failed');
-                setIsDownloading(false);
-                setStatusMessage('');
-              }
-            } catch (parseError) {
-              console.error('Parse error:', parseError);
-            }
-          }
+        
+        chunks.push(value);
+        loaded += value.length;
+        
+        if (total > 0) {
+          const percent = Math.min((loaded / total) * 100, 99);
+          setDownloadProgress(percent);
+          setDownloadInfo({
+            downloaded: formatBytes(loaded),
+            total: formatBytes(total),
+          });
         }
       }
+
+      const blob = new Blob(chunks, { 
+        type: format === 'mp3' ? 'audio/mpeg' : 'video/mp4' 
+      });
+      
+      const blobUrl = URL.createObjectURL(blob);
+      setDownloadUrl(blobUrl);
+      setDownloadProgress(100);
+      setStatusMessage('Download complete!');
+      setIsDownloading(false);
+
+      const downloadInfo = {
+        url: blobUrl,
+        filename: filename,
+      };
+      
+      (window as any).pendingDownload = downloadInfo;
+
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error. Please try again.';
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       setError('Download failed: ' + errorMessage);
       setIsDownloading(false);
       setStatusMessage('');
@@ -141,10 +140,29 @@ export default function Home() {
   };
 
   const handleDownloadFile = () => {
-    if (downloadUrl) {
-      window.location.href = downloadUrl;
+    const downloadInfo = (window as any).pendingDownload;
+    if (downloadInfo) {
+      const a = document.createElement('a');
+      a.href = downloadInfo.url;
+      a.download = downloadInfo.filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      
+      setTimeout(() => {
+        URL.revokeObjectURL(downloadInfo.url);
+        delete (window as any).pendingDownload;
+      }, 100);
     }
   };
+
+  function formatBytes(bytes: number): string {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  }
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
