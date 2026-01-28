@@ -1,116 +1,43 @@
-﻿import { NextRequest } from 'next/server';
-import ytdl from '@distube/ytdl-core';
+﻿import { NextRequest, NextResponse } from 'next/server';
+import { downloadManagerService } from '@/lib/services/download-manager.service';
+import { DownloadRequestSchema } from '@/lib/validation';
+import { rateLimiter } from '@/lib/middleware/rate-limit';
+import { logger } from '@/lib/logger';
 
-const agent = ytdl.createAgent(undefined, {
-  localAddress: undefined,
-});
-
-export async function GET(request: NextRequest) {
+export async function POST(request: NextRequest) {
   try {
-    const searchParams = request.nextUrl.searchParams;
-    const videoId = searchParams.get('videoId');
-    const format = searchParams.get('format');
-
-    if (!videoId || !format) {
-      return new Response(
-        JSON.stringify({ error: 'Missing required parameters' }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
+    if (!rateLimiter.checkRateLimit(request)) {
+      return NextResponse.json(
+        { error: 'Too many requests' },
+        { status: 429 }
       );
     }
 
-    const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
+    const body = await request.json();
+    const validation = DownloadRequestSchema.safeParse(body);
 
-    if (!ytdl.validateURL(videoUrl)) {
-      return new Response(
-        JSON.stringify({ error: 'Invalid YouTube URL' }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
+    if (!validation.success) {
+      logger.warn({ errors: validation.error.errors }, 'Invalid download request');
+      return NextResponse.json(
+        { error: 'Invalid request', details: validation.error.errors },
+        { status: 400 }
       );
     }
 
-    const info = await ytdl.getInfo(videoUrl, { agent });
-    const title = info.videoDetails.title
-      .replace(/[<>:"/\\|?*]/g, '')
-      .replace(/\s+/g, '_')
-      .substring(0, 200);
+    const { videoId, format, quality } = validation.data;
+    const { downloadId } = await downloadManagerService.startDownload(videoId, format, quality);
 
-    let stream;
-    let contentType;
-    let filename;
+    logger.info({ downloadId, videoId, format, quality }, 'Download initiated');
 
-    if (format === 'mp4') {
-      stream = ytdl(videoUrl, {
-        quality: 'highestvideo',
-        filter: (fmt) => fmt.hasVideo && fmt.hasAudio,
-        agent,
-        requestOptions: {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-          },
-        },
-      });
-      contentType = 'video/mp4';
-      filename = `${title}.mp4`;
-    } else {
-      const formats = ytdl.filterFormats(info.formats, 'audioonly');
-      
-      if (formats.length === 0) {
-        return new Response(
-          JSON.stringify({ error: 'No audio formats available' }),
-          { status: 400, headers: { 'Content-Type': 'application/json' } }
-        );
-      }
-
-      const audioFormat = formats.reduce((best, current) => {
-        const bestBitrate = parseInt(best.audioBitrate?.toString() || '0');
-        const currentBitrate = parseInt(current.audioBitrate?.toString() || '0');
-        return currentBitrate > bestBitrate ? current : best;
-      });
-
-      stream = ytdl(videoUrl, {
-        format: audioFormat,
-        agent,
-        requestOptions: {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-          },
-        },
-      });
-      contentType = 'audio/mpeg';
-      filename = `${title}.mp3`;
-    }
-
-    const readableStream = new ReadableStream({
-      start(controller) {
-        stream.on('data', (chunk: Buffer) => {
-          controller.enqueue(chunk);
-        });
-
-        stream.on('end', () => {
-          controller.close();
-        });
-
-        stream.on('error', (error: Error) => {
-          console.error('Stream error:', error);
-          controller.error(error);
-        });
-      },
+    return NextResponse.json({
+      downloadId,
+      status: 'processing'
     });
-
-    return new Response(readableStream, {
-      headers: {
-        'Content-Type': contentType,
-        'Content-Disposition': `attachment; filename="${encodeURIComponent(filename)}"`,
-        'X-Filename': encodeURIComponent(filename),
-        'Cache-Control': 'no-cache',
-      },
-    });
-
   } catch (error) {
-    console.error('Download error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Failed to download';
-    return new Response(
-      JSON.stringify({ error: errorMessage }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
+    logger.error({ error }, 'Download initiation error');
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { status: 500 }
     );
   }
 }

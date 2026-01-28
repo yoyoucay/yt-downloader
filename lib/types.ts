@@ -5,6 +5,10 @@
   channel: string;
   duration: string;
   url: string;
+  availableFormats?: {
+    video: string[];
+    audio: string[];
+  };
 }
 
 export interface DownloadOptions {
@@ -21,9 +25,14 @@ export interface PlaylistVideo {
 }
 
 export interface DownloadProgress {
+  status: 'starting' | 'preparing' | 'downloading' | 'complete' | 'error';
+  message?: string;
   percent: number;
-  downloaded: string;
-  total: string;
-  speed: string;
-  eta: string;
+  downloaded?: string;
+  total?: string;
+  speed?: string;
+  eta?: string;
+  downloadUrl?: string;
+  filename?: string;
+  filepath?: string;
 }

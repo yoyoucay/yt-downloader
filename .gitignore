@@ -42,3 +42,8 @@ next-env.d.ts
 
 # YouTube player cache files
 *-player-script.js
+
+# downloads
+/downloads/*
+!downloads/.gitkeep
+*.log
