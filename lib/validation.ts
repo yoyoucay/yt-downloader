@@ -15,6 +15,7 @@ export const FormatSchema = z.enum(["mp3", "mp4"]);
 
 export const QualityVideoSchema = z.enum([
   "144p",
+  "240p",
   "360p",
   "480p",
   "720p",

@@ -26,11 +26,13 @@ class DownloadManager {
     this.downloads = new Map();
     this.ytDlpService = new YtDlpService();
     this.initializeCleanup();
+    logger.info({ instanceId: Math.random().toString(36).slice(2) }, 'DownloadManager instance created');
   }
 
   static getInstance(): DownloadManager {
     if (!DownloadManager.instance) {
       DownloadManager.instance = new DownloadManager();
+      logger.info('Created new DownloadManager singleton instance');
     }
     return DownloadManager.instance;
   }
@@ -49,7 +51,12 @@ class DownloadManager {
       progress: 0
     });
 
-    logger.info({ downloadId, videoId }, 'Download registered in map');
+    logger.info({ 
+      downloadId, 
+      videoId, 
+      mapSize: this.downloads.size,
+      allDownloads: Array.from(this.downloads.keys())
+    }, 'Download registered in map');
 
     // Process async work in next tick
     process.nextTick(() => {
@@ -92,7 +99,14 @@ class DownloadManager {
   }
 
   getProgress(downloadId: string): DownloadProgress | null {
-    return this.downloads.get(downloadId) || null;
+    const progress = this.downloads.get(downloadId) || null;
+    logger.info({ 
+      downloadId, 
+      found: !!progress,
+      mapSize: this.downloads.size,
+      allDownloads: Array.from(this.downloads.keys())
+    }, 'getProgress called');
+    return progress;
   }
 
   private async processDownload(

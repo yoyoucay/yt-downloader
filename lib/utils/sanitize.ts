@@ -1,5 +1,4 @@
 export function sanitizeFilename(filename: string): string {
-  // Extract extension first
   const lastDotIndex = filename.lastIndexOf('.');
   let name = filename;
   let ext = '';
@@ -9,7 +8,6 @@ export function sanitizeFilename(filename: string): string {
     ext = filename.substring(lastDotIndex);
   }
 
-  // Sanitize the name: keep only ASCII printable characters (32-126)
   let sanitized = name
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
@@ -18,14 +16,14 @@ export function sanitizeFilename(filename: string): string {
     .replace(/\.\./g, '')
     .replace(/^\.+/, '')
     .replace(/\s+/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_+|_+$/g, '')
     .trim();
 
-  // Limit length
   const maxLength = 200;
   if (sanitized.length > maxLength) {
     sanitized = sanitized.slice(0, maxLength);
   }
 
-  // Append extension back
   return (sanitized || 'download') + ext;
 }

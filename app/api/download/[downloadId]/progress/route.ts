@@ -8,9 +8,12 @@ export async function GET(
 ) {
   try {
     const { downloadId } = await params;
+    logger.info({ downloadId, path: request.url }, 'Progress endpoint called');
+
     const progress = downloadManagerService.getProgress(downloadId);
 
     if (!progress) {
+      logger.warn({ downloadId }, 'Download not found in map');
       return NextResponse.json(
         { error: 'Download not found' },
         { status: 404 }

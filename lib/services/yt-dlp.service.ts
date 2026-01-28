@@ -22,12 +22,44 @@ export interface DownloadResult {
   duration: number;
 }
 
+const USER_AGENTS = [
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0',
+];
+
 export class YtDlpService {
-  async getVideoInfo(videoId: VideoId): Promise<VideoInfo> {
+  private getRandomUserAgent(): string {
+    return USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
+  }
+
+  private async delay(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  async getVideoInfo(videoId: VideoId, retryCount = 0): Promise<VideoInfo> {
+    const maxRetries = 3;
+    
+    try {
+      return await this.fetchVideoInfo(videoId);
+    } catch (error) {
+      if (retryCount < maxRetries) {
+        const delayMs = Math.pow(2, retryCount) * 1000 + Math.random() * 1000;
+        logger.warn({ videoId, retryCount, delayMs }, 'Retrying getVideoInfo');
+        await this.delay(delayMs);
+        return this.getVideoInfo(videoId, retryCount + 1);
+      }
+      throw error;
+    }
+  }
+
+  private async fetchVideoInfo(videoId: VideoId): Promise<VideoInfo> {
     return new Promise((resolve, reject) => {
       const args = [
         '--dump-json',
         '--no-playlist',
+        '--user-agent', this.getRandomUserAgent(),
         `https://www.youtube.com/watch?v=${videoId}`
       ];
 
@@ -96,12 +128,38 @@ export class YtDlpService {
     videoId: VideoId,
     format: Format,
     quality: QualityVideo | QualityAudio,
-    outputPath: string
+    outputPath: string,
+    retryCount = 0
+  ): Promise<DownloadResult> {
+    const maxRetries = 3;
+    
+    try {
+      return await this.performDownload(videoId, format, quality, outputPath, retryCount);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const is403Error = errorMessage.includes('403') || errorMessage.includes('Forbidden');
+      
+      if (is403Error && retryCount < maxRetries) {
+        const delayMs = Math.pow(2, retryCount) * 2000 + Math.random() * 2000;
+        logger.warn({ videoId, retryCount, delayMs, error: errorMessage }, 'Retrying download due to 403 error');
+        await this.delay(delayMs);
+        return this.downloadVideo(videoId, format, quality, outputPath, retryCount + 1);
+      }
+      throw error;
+    }
+  }
+
+  private async performDownload(
+    videoId: VideoId,
+    format: Format,
+    quality: QualityVideo | QualityAudio,
+    outputPath: string,
+    retryCount: number
   ): Promise<DownloadResult> {
     return new Promise((resolve, reject) => {
-      const args = this.buildDownloadArgs(videoId, format, quality, outputPath);
+      const args = this.buildDownloadArgs(videoId, format, quality, outputPath, retryCount);
       
-      logger.info({ videoId, format, quality, outputPath }, 'Starting download');
+      logger.info({ videoId, format, quality, outputPath, retryCount }, 'Starting download');
 
       const proc = spawn(YT_DLP_PATH, args);
       let stderr = '';
@@ -113,7 +171,7 @@ export class YtDlpService {
       proc.on('close', async (code) => {
         if (code !== 0) {
           logger.error({ videoId, stderr, code }, 'Download failed');
-          reject(new Error('Download failed'));
+          reject(new Error(stderr || 'Download failed'));
           return;
         }
 
@@ -147,15 +205,24 @@ export class YtDlpService {
     videoId: VideoId,
     format: Format,
     quality: QualityVideo | QualityAudio,
-    outputPath: string
+    outputPath: string,
+    retryCount: number
   ): string[] {
+    const userAgent = this.getRandomUserAgent();
+    
     const baseArgs = [
       `https://www.youtube.com/watch?v=${videoId}`,
       '-o', outputPath,
       '--no-playlist',
       '--ffmpeg-location', FFMPEG_PATH,
-      '--no-check-certificates'
+      '--no-check-certificates',
+      '--user-agent', userAgent
     ];
+
+    if (retryCount > 0) {
+      baseArgs.push('--cookies-from-browser', 'chrome');
+      baseArgs.push('--sleep-requests', '1');
+    }
 
     if (format === 'mp3') {
       return [
@@ -173,10 +240,10 @@ export class YtDlpService {
         240: '133/18',
         360: '18',
         480: '135+140/18',
-        720: '298+140/18',
-        1080: '299+140/18',
-        1440: '308+140/18',
-        2160: '315+140/18'
+        720: '298+140/22/18',
+        1080: '299+140/22/18',
+        1440: '308+140/22/18',
+        2160: '315+140/22/18'
       };
       
       const formatCode = qualityMap[height] || '18';
