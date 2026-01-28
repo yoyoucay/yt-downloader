@@ -157,8 +157,7 @@ export async function GET(request: NextRequest) {
 
     const { query: validatedQuery } = validation.data;
     const videos = await searchService.searchVideos(validatedQuery);
-
-    console.log({ query: validatedQuery, contentVideos: videos, resultCount: videos.length})
+    logger.debug({ videos }, 'Search results fetched');
 
     logger.info({ query: validatedQuery, resultCount: videos.length }, 'Search completed');
 

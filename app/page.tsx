@@ -176,7 +176,6 @@ export default function Home() {
           
           <header className="text-center mb-10">
             <div className="flex items-center justify-center gap-3 mb-4">
-              <Youtube className="w-10 h-10 sm:w-12 sm:h-12 text-red-600" />
               <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold bg-gradient-to-r from-red-600 to-red-500 bg-clip-text text-transparent">
                 YouTube Downloader
               </h1>
@@ -239,7 +238,6 @@ export default function Home() {
                     {selectedVideo.title}
                   </p>
                   <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-2">
-                    <Youtube className="w-4 h-4" />
                     {selectedVideo.channel}
                   </p>
                 </div>

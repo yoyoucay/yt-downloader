@@ -11,7 +11,7 @@ interface QualitySelectorProps {
 
 export function QualitySelector({ format, selected, onChange, availableQualities }: QualitySelectorProps) {
   const defaultQualities = format === 'mp4' 
-    ? ['360p', '480p', '720p', '1080p']
+    ? ['144p', '240p', '360p', '480p', '720p', '1080p', '1440p', '2160p']
     : ['128kbps', '192kbps', '256kbps', '320kbps'];
 
   const qualities = availableQualities && availableQualities.length > 0 
