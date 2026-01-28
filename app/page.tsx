@@ -52,6 +52,7 @@ export default function Home() {
 
       if (data.videos && data.videos.length > 0) {
         setSearchResults(data.videos);
+        setSelectedVideo(data.videos[0]);
       } else {
         setError('No videos found. Try a different search term.');
       }
