@@ -17,12 +17,16 @@ export default function Home() {
   const [isSearching, setIsSearching] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState(0);
-  const [downloadInfo, setDownloadInfo] = useState<any>(null);
+  const [downloadInfo, setDownloadInfo] = useState<{
+    downloaded?: string;
+    total?: string;
+    speed?: string;
+    eta?: string;
+  } | null>(null);
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string>('');
 
-  // Update quality when format changes
   useEffect(() => {
     if (format === 'mp4') {
       setQuality('720p');
@@ -42,8 +46,6 @@ export default function Home() {
       const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
       const data = await response.json();
 
-      console.log({data})
-
       if (data.error) {
         setError(data.error);
       } else if (data.videos && data.videos.length > 0) {
@@ -51,7 +53,7 @@ export default function Home() {
       } else {
         setError('No videos found. Try a different search term.');
       }
-    } catch (err: any) {
+    } catch (err) {
       setError('Failed to search. Please check your internet connection and try again.');
       console.error('Search error:', err);
     } finally {
@@ -67,6 +69,8 @@ export default function Home() {
     setDownloadUrl(null);
     setError(null);
     setStatusMessage('Starting download...');
+
+    console.log({ selectedVideo, format, quality });
 
     try {
       const response = await fetch('/api/download', {
@@ -127,8 +131,9 @@ export default function Home() {
           }
         }
       }
-    } catch (err: any) {
-      setError('Download failed: ' + (err.message || 'Unknown error. Please try again.'));
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error. Please try again.';
+      setError('Download failed: ' + errorMessage);
       setIsDownloading(false);
       setStatusMessage('');
       console.error('Download error:', err);
@@ -142,138 +147,154 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto">
+    <main className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
+      <div className="container mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+        
         {/* Header */}
-        <div className="text-center mb-12">
+        <header className="text-center mb-10">
           <div className="flex items-center justify-center gap-3 mb-4">
+            <Youtube className="w-10 h-10 sm:w-12 sm:h-12 text-red-600" />
             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold bg-gradient-to-r from-red-600 to-red-500 bg-clip-text text-transparent">
               YouTube Downloader
             </h1>
           </div>
-          <p className="text-gray-600 dark:text-gray-400 text-base sm:text-lg">
-            Search and download YouTube videos in MP3 or MP4 format
+          <p className="text-gray-600 dark:text-gray-400 text-base sm:text-lg max-w-2xl mx-auto">
+            Search and download YouTube videos in MP3 or MP4 format with real-time progress tracking
           </p>
-        </div>
+        </header>
 
-        <div className="mb-8">
+        {/* Search Section */}
+        <section className="mb-10">
           <SearchBar onSearch={handleSearch} isLoading={isSearching} />
-        </div>
+        </section>
 
+        {/* Loading State */}
         {isSearching && (
-          <div className="flex flex-col justify-center items-center py-20">
+          <div className="flex flex-col justify-center items-center py-16">
             <Loader2 className="w-12 h-12 text-red-600 animate-spin mb-4" />
-            <p className="text-gray-600 dark:text-gray-400">Searching YouTube...</p>
+            <p className="text-gray-600 dark:text-gray-400 font-medium">Searching YouTube...</p>
           </div>
         )}
 
+        {/* Error Message */}
         {error && (
-          <div className="mb-6 p-4 bg-red-100 dark:bg-red-900/30 border-2 border-red-300 dark:border-red-700 rounded-xl flex items-start gap-3">
+          <div className="mb-8 p-4 bg-red-50 dark:bg-red-900/20 border-2 border-red-200 dark:border-red-700 rounded-xl flex items-start gap-3 shadow-sm">
             <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
-            <div>
+            <div className="flex-1">
               <h3 className="font-semibold text-red-800 dark:text-red-300 mb-1">Error</h3>
-              <p className="text-red-700 dark:text-red-400 text-sm">{error}</p>
+              <p className="text-red-700 dark:text-red-400 text-sm leading-relaxed">{error}</p>
             </div>
           </div>
         )}
 
+        {/* Search Results */}
         {searchResults.length > 0 && (
-          <div className="mb-8">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-              <span>Search Results</span>
+          <section className="mb-10">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
+              Search Results
             </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
-              {searchResults.map((video) => (
-                <VideoCard
-                  key={video.id}
-                  video={video}
-                  onSelect={setSelectedVideo}
-                  isSelected={selectedVideo?.id === video.id}
-                />
-              ))}
+            <div className="flex justify-center">
+              <div className="w-full max-w-sm">
+                {searchResults.map((video) => (
+                  <VideoCard
+                    key={video.id}
+                    video={video}
+                    onSelect={setSelectedVideo}
+                    isSelected={selectedVideo?.id === video.id}
+                  />
+                ))}
+              </div>
             </div>
-          </div>
+          </section>
         )}
 
         {/* Download Controls */}
         {selectedVideo && (
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 sm:p-8 mb-8 border border-gray-200 dark:border-gray-700">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
-              Download Options
-            </h2>
+          <section className="max-w-3xl mx-auto">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-6 sm:p-8 border border-gray-200 dark:border-gray-700">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
+                Download Options
+              </h2>
 
-            <div className="mb-6 p-4 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-800 rounded-xl border border-gray-200 dark:border-gray-600">
-              <p className="font-semibold text-gray-900 dark:text-white mb-1 line-clamp-2">
-                {selectedVideo.title}
-              </p>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                {selectedVideo.channel}
-              </p>
-            </div>
-
-            <div className="grid sm:grid-cols-2 gap-4 sm:gap-6 mb-6">
-              <FormatSelector selected={format} onChange={setFormat} />
-              <QualitySelector
-                format={format}
-                selected={quality}
-                onChange={setQuality}
-              />
-            </div>
-
-            {statusMessage && (
-              <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg text-blue-700 dark:text-blue-400 text-sm">
-                {statusMessage}
+              {/* Selected Video Info */}
+              <div className="mb-6 p-5 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-800 rounded-xl border border-gray-200 dark:border-gray-600 shadow-sm">
+                <p className="font-semibold text-gray-900 dark:text-white mb-2 text-lg leading-snug">
+                  {selectedVideo.title}
+                </p>
+                <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-2">
+                  <Youtube className="w-4 h-4" />
+                  {selectedVideo.channel}
+                </p>
               </div>
-            )}
 
-            {isDownloading && (
-              <div className="mb-6">
-                <ProgressBar
-                  percent={downloadProgress}
-                  downloaded={downloadInfo?.downloaded}
-                  total={downloadInfo?.total}
+              {/* Format and Quality Selectors */}
+              <div className="grid sm:grid-cols-2 gap-4 sm:gap-6 mb-6">
+                <FormatSelector selected={format} onChange={setFormat} />
+                <QualitySelector
+                  format={format}
+                  selected={quality}
+                  onChange={setQuality}
                 />
               </div>
-            )}
 
-            {downloadUrl ? (
-              <button
-                onClick={handleDownloadFile}
-                className="w-full py-4 px-6 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-xl transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
-              >
-                <CheckCircle className="w-5 h-5" />
-                Download Complete - Click to Save File
-              </button>
-            ) : (
-              <button
-                onClick={handleDownload}
-                disabled={isDownloading}
-                className="w-full py-4 px-6 bg-red-600 hover:bg-red-700 disabled:bg-gray-400 dark:disabled:bg-gray-600 text-white font-semibold rounded-xl transition-all shadow-lg hover:shadow-xl disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center gap-2"
-              >
-                {isDownloading ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    Downloading...
-                  </>
-                ) : (
-                  <>
-                    <Download className="w-5 h-5" />
-                    Start Download
-                  </>
-                )}
-              </button>
-            )}
-          </div>
+              {/* Status Message */}
+              {statusMessage && (
+                <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg text-blue-700 dark:text-blue-400 text-sm font-medium">
+                  {statusMessage}
+                </div>
+              )}
+
+              {/* Progress Bar */}
+              {isDownloading && (
+                <div className="mb-6">
+                  <ProgressBar
+                    percent={downloadProgress}
+                    downloaded={downloadInfo?.downloaded}
+                    total={downloadInfo?.total}
+                  />
+                </div>
+              )}
+
+              {/* Download Button */}
+              {downloadUrl ? (
+                <button
+                  onClick={handleDownloadFile}
+                  className="w-full py-4 px-6 bg-green-600 hover:bg-green-700 active:bg-green-800 text-white font-semibold rounded-xl transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-3"
+                >
+                  <CheckCircle className="w-5 h-5" />
+                  Download Complete - Click to Save File
+                </button>
+              ) : (
+                <button
+                  onClick={handleDownload}
+                  disabled={isDownloading}
+                  className="w-full py-4 px-6 bg-red-600 hover:bg-red-700 active:bg-red-800 disabled:bg-gray-400 dark:disabled:bg-gray-600 text-white font-semibold rounded-xl transition-all shadow-lg hover:shadow-xl disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center gap-3"
+                >
+                  {isDownloading ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Downloading...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-5 h-5" />
+                      Start Download
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
+          </section>
         )}
 
-        {/* Info Footer */}
+        {/* Empty State */}
         {!isSearching && searchResults.length === 0 && !selectedVideo && !error && (
-          <div className="text-center py-20">
-            <h3 className="text-xl font-semibold text-gray-600 dark:text-gray-400 mb-2">
+          <div className="text-center py-16">
+            <h3 className="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">
               Start by searching for a video
             </h3>
-            <p className="text-gray-500 dark:text-gray-500 text-sm sm:text-base">
-              Enter a search term or paste a YouTube URL above
+            <p className="text-gray-500 dark:text-gray-500 text-sm sm:text-base max-w-md mx-auto">
+              Enter a search term or paste a YouTube URL in the search bar above
             </p>
           </div>
         )}

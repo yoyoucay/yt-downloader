@@ -1,10 +1,10 @@
 ﻿import { NextRequest } from 'next/server';
 import ytdl from '@distube/ytdl-core';
-import { writeFile, unlink } from 'fs/promises';
+import { writeFile, unlink, mkdir } from 'fs/promises';
+import { existsSync } from 'fs';
 import path from 'path';
 import os from 'os';
 
-// Helper to format bytes
 function formatBytes(bytes: number): string {
   if (bytes === 0) return '0 B';
   const k = 1024;
@@ -13,7 +13,6 @@ function formatBytes(bytes: number): string {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
-// Helper to sanitize filename
 function sanitizeFilename(filename: string): string {
   return filename
     .replace(/[<>:"/\\|?*]/g, '')
@@ -21,9 +20,13 @@ function sanitizeFilename(filename: string): string {
     .substring(0, 200);
 }
 
+const agent = ytdl.createAgent(undefined, {
+  localAddress: undefined,
+});
+
 export async function POST(request: NextRequest) {
   const encoder = new TextEncoder();
-  let { videoId, format, quality } = await request.json();
+  const { videoId, format, quality } = await request.json();
 
   if (!videoId || !format) {
     return new Response(
@@ -33,12 +36,19 @@ export async function POST(request: NextRequest) {
   }
 
   const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
+  const cacheDir = path.join(os.tmpdir(), 'ytdl-cache');
+  
+  if (!existsSync(cacheDir)) {
+    await mkdir(cacheDir, { recursive: true });
+  }
 
-  // Create readable stream for SSE
+  const originalCwd = process.cwd();
+
   const stream = new ReadableStream({
     async start(controller) {
       try {
-        // Send initial message
+        process.chdir(cacheDir);
+
         const initialData = `data: ${JSON.stringify({
           status: 'starting',
           message: 'Fetching video information...',
@@ -46,13 +56,11 @@ export async function POST(request: NextRequest) {
         })}\n\n`;
         controller.enqueue(encoder.encode(initialData));
 
-        // Verify video availability
         if (!ytdl.validateURL(videoUrl)) {
           throw new Error('Invalid YouTube URL');
         }
 
-        // Get video info
-        const info = await ytdl.getInfo(videoUrl);
+        const info = await ytdl.getInfo(videoUrl, { agent });
         const title = sanitizeFilename(info.videoDetails.title);
 
         const prepareData = `data: ${JSON.stringify({
@@ -63,31 +71,19 @@ export async function POST(request: NextRequest) {
         controller.enqueue(encoder.encode(prepareData));
 
         if (format === 'mp4') {
-          // Download video
-          let qualityOption: ytdl.videoFormat | string = 'highestvideo';
-          
-          if (quality === '1080p') qualityOption = 'highestvideo';
-          else if (quality === '720p') qualityOption = 'highestvideo';
-          else if (quality === '480p') qualityOption = 'lowestvideo';
-          else if (quality === '360p') qualityOption = 'lowestvideo';
-
           const videoStream = ytdl(videoUrl, {
-            quality: qualityOption as any,
-            filter: format => format.hasVideo && format.hasAudio,
+            quality: 'highestvideo',
+            filter: (fmt) => fmt.hasVideo && fmt.hasAudio,
+            agent,
+            requestOptions: {
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+              },
+            },
           });
 
-          let downloadedBytes = 0;
-          let totalBytes = 0;
-
-          videoStream.on('info', (info, format) => {
-            totalBytes = parseInt(format.contentLength || '0');
-          });
-
-          videoStream.on('progress', (chunkLength, downloaded, total) => {
-            downloadedBytes = downloaded;
-            totalBytes = total;
+          videoStream.on('progress', (_chunkLength: number, downloaded: number, total: number) => {
             const percent = Math.min((downloaded / total) * 100, 99);
-
             const progressData = `data: ${JSON.stringify({
               status: 'downloading',
               percent: percent,
@@ -99,12 +95,13 @@ export async function POST(request: NextRequest) {
 
           const chunks: Buffer[] = [];
           
-          videoStream.on('data', (chunk) => {
+          videoStream.on('data', (chunk: Buffer) => {
             chunks.push(chunk);
           });
 
           videoStream.on('end', async () => {
             try {
+              process.chdir(originalCwd);
               const buffer = Buffer.concat(chunks);
               const filename = `${title}.mp4`;
               const filepath = path.join(os.tmpdir(), `yt_${Date.now()}_${filename}`);
@@ -121,7 +118,6 @@ export async function POST(request: NextRequest) {
               controller.enqueue(encoder.encode(completeData));
               controller.close();
 
-              // Cleanup after 10 minutes
               setTimeout(async () => {
                 try {
                   await unlink(filepath);
@@ -129,45 +125,56 @@ export async function POST(request: NextRequest) {
                   console.error('Cleanup error:', e);
                 }
               }, 600000);
-            } catch (error: any) {
+            } catch (error) {
+              process.chdir(originalCwd);
+              const errorMessage = error instanceof Error ? error.message : 'Unknown error';
               const errorData = `data: ${JSON.stringify({
                 status: 'error',
-                message: 'Failed to save file: ' + error.message,
+                message: 'Failed to save file: ' + errorMessage,
               })}\n\n`;
               controller.enqueue(encoder.encode(errorData));
               controller.close();
             }
           });
 
-          videoStream.on('error', (error) => {
+          videoStream.on('error', (error: Error) => {
+            process.chdir(originalCwd);
             console.error('Download error:', error);
             const errorData = `data: ${JSON.stringify({
               status: 'error',
-              message: 'Download failed: ' + error.message,
+              message: 'Download failed: ' + error.message + '. This video may be restricted or age-gated.',
             })}\n\n`;
             controller.enqueue(encoder.encode(errorData));
             controller.close();
           });
 
         } else {
-          // MP3 download
+          const formats = ytdl.filterFormats(info.formats, 'audioonly');
+          
+          if (formats.length === 0) {
+            throw new Error('No audio formats available for this video');
+          }
+
+          const audioFormat = formats.reduce((best, current) => {
+            const bestBitrate = parseInt(best.audioBitrate?.toString() || '0');
+            const currentBitrate = parseInt(current.audioBitrate?.toString() || '0');
+            return currentBitrate > bestBitrate ? current : best;
+          });
+
+          console.log('Selected audio format:', audioFormat.itag, 'bitrate:', audioFormat.audioBitrate);
+
           const audioStream = ytdl(videoUrl, {
-            quality: 'highestaudio',
-            filter: 'audioonly',
+            format: audioFormat,
+            agent,
+            requestOptions: {
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+              },
+            },
           });
 
-          let downloadedBytes = 0;
-          let totalBytes = 0;
-
-          audioStream.on('info', (info, format) => {
-            totalBytes = parseInt(format.contentLength || '0');
-          });
-
-          audioStream.on('progress', (chunkLength, downloaded, total) => {
-            downloadedBytes = downloaded;
-            totalBytes = total;
+          audioStream.on('progress', (_chunkLength: number, downloaded: number, total: number) => {
             const percent = Math.min((downloaded / total) * 100, 99);
-
             const progressData = `data: ${JSON.stringify({
               status: 'downloading',
               percent: percent,
@@ -179,12 +186,13 @@ export async function POST(request: NextRequest) {
 
           const chunks: Buffer[] = [];
           
-          audioStream.on('data', (chunk) => {
+          audioStream.on('data', (chunk: Buffer) => {
             chunks.push(chunk);
           });
 
           audioStream.on('end', async () => {
             try {
+              process.chdir(originalCwd);
               const buffer = Buffer.concat(chunks);
               const filename = `${title}.mp3`;
               const filepath = path.join(os.tmpdir(), `yt_${Date.now()}_${filename}`);
@@ -201,7 +209,6 @@ export async function POST(request: NextRequest) {
               controller.enqueue(encoder.encode(completeData));
               controller.close();
 
-              // Cleanup after 10 minutes
               setTimeout(async () => {
                 try {
                   await unlink(filepath);
@@ -209,31 +216,46 @@ export async function POST(request: NextRequest) {
                   console.error('Cleanup error:', e);
                 }
               }, 600000);
-            } catch (error: any) {
+            } catch (error) {
+              process.chdir(originalCwd);
+              const errorMessage = error instanceof Error ? error.message : 'Unknown error';
               const errorData = `data: ${JSON.stringify({
                 status: 'error',
-                message: 'Failed to save file: ' + error.message,
+                message: 'Failed to save file: ' + errorMessage,
               })}\n\n`;
               controller.enqueue(encoder.encode(errorData));
               controller.close();
             }
           });
 
-          audioStream.on('error', (error) => {
+          audioStream.on('error', (error: Error) => {
+            process.chdir(originalCwd);
             console.error('Download error:', error);
             const errorData = `data: ${JSON.stringify({
               status: 'error',
-              message: 'Download failed: ' + error.message,
+              message: 'Download failed: ' + error.message + '. This video may be restricted or require authentication.',
             })}\n\n`;
             controller.enqueue(encoder.encode(errorData));
             controller.close();
           });
         }
-      } catch (error: any) {
+      } catch (error) {
+        process.chdir(originalCwd);
         console.error('Setup error:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Failed to process video';
+        
+        let userMessage = errorMessage;
+        if (errorMessage.includes('403')) {
+          userMessage = 'YouTube blocked the request (403). This video may be age-restricted or require sign-in. Please try a different video.';
+        } else if (errorMessage.includes('410')) {
+          userMessage = 'This video is no longer available (410).';
+        } else if (errorMessage.includes('404')) {
+          userMessage = 'Video not found (404). Please check the URL.';
+        }
+        
         const errorData = `data: ${JSON.stringify({
           status: 'error',
-          message: error.message || 'Failed to process video. Please try another video.',
+          message: userMessage,
         })}\n\n`;
         controller.enqueue(encoder.encode(errorData));
         controller.close();
@@ -249,3 +271,4 @@ export async function POST(request: NextRequest) {
     },
   });
 }
+
