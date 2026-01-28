@@ -153,27 +153,28 @@ export class YtDlpService {
       `https://www.youtube.com/watch?v=${videoId}`,
       '-o', outputPath,
       '--no-playlist',
+      '--ffmpeg-location', FFMPEG_PATH,
       '--no-check-certificates'
     ];
 
     if (format === 'mp3') {
       return [
         ...baseArgs,
-        '-f', 'bestaudio[ext=m4a]/bestaudio',
-        '--extract-audio',
+        '-f', '140/bestaudio',
+        '-x',
         '--audio-format', 'mp3'
       ];
     } else {
-      const formatMap: Record<string, string> = {
+      const qualityMap: Record<string, string> = {
         '360p': '18',
         '480p': '135+140/18',
-        '720p': '22',
-        '1080p': '137+140',
-        '1440p': '264+140',
-        '2160p': '266+140'
+        '720p': '298+140/18',
+        '1080p': '299+140/18',
+        '1440p': '308+140/18',
+        '2160p': '315+140/18'
       };
       
-      const formatCode = formatMap[quality as QualityVideo] || '18';
+      const formatCode = qualityMap[quality as QualityVideo] || '18';
       
       return [
         ...baseArgs,
