@@ -1,6 +1,6 @@
 ﻿import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import "../app/globals.css";
+import "./globals.css";
 import { ThemeProvider } from "./components/ThemeProvider";
 import { ThemeToggle } from "./components/ThemeToggle";
 
@@ -30,9 +30,12 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <ThemeProvider>
-          <div className="fixed top-4 right-4 z-50">
+          {/* Theme Toggle - Responsive positioning */}
+          <div className="fixed top-4 right-4 sm:top-6 sm:right-6 lg:top-8 lg:right-8 z-50">
             <ThemeToggle />
           </div>
+          
+          {/* Main Content */}
           {children}
         </ThemeProvider>
       </body>
