@@ -165,16 +165,21 @@ export class YtDlpService {
         '--audio-format', 'mp3'
       ];
     } else {
-      const qualityMap: Record<string, string> = {
-        '360p': '18',
-        '480p': '135+140/18',
-        '720p': '298+140/18',
-        '1080p': '299+140/18',
-        '1440p': '308+140/18',
-        '2160p': '315+140/18'
+      const heightMatch = quality.match(/^(\d+)p/);
+      const height = heightMatch ? parseInt(heightMatch[1]) : 360;
+      
+      const qualityMap: Record<number, string> = {
+        144: '160/18',
+        240: '133/18',
+        360: '18',
+        480: '135+140/18',
+        720: '298+140/18',
+        1080: '299+140/18',
+        1440: '308+140/18',
+        2160: '315+140/18'
       };
       
-      const formatCode = qualityMap[quality as QualityVideo] || '18';
+      const formatCode = qualityMap[height] || '18';
       
       return [
         ...baseArgs,

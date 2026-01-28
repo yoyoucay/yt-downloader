@@ -41,22 +41,54 @@ class DownloadManager {
     quality: QualityVideo | QualityAudio
   ): Promise<{ downloadId: string; filePath: string }> {
     const downloadId = randomUUID();
-    
+
+    // Register download IMMEDIATELY in map
     this.downloads.set(downloadId, {
       downloadId,
       status: 'pending',
       progress: 0
     });
 
-    await mkdir(DOWNLOADS_DIR, { recursive: true });
+    logger.info({ downloadId, videoId }, 'Download registered in map');
 
-    const info = await this.ytDlpService.getVideoInfo(videoId);
-    const filename = sanitizeFilename(`${info.title}.${format}`);
-    const filePath = path.join(DOWNLOADS_DIR, `${downloadId}_${filename}`);
+    // Process async work in next tick
+    process.nextTick(() => {
+      this.initializeDownload(downloadId, videoId, format, quality).catch(error => {
+        logger.error({ error, downloadId }, 'Download initialization failed');
+      });
+    });
 
-    this.processDownload(downloadId, videoId, format, quality, filePath);
+    return { downloadId, filePath: '' };
+  }
 
-    return { downloadId, filePath };
+  private async initializeDownload(
+    downloadId: string,
+    videoId: VideoId,
+    format: Format,
+    quality: QualityVideo | QualityAudio
+  ): Promise<void> {
+    try {
+      await mkdir(DOWNLOADS_DIR, { recursive: true });
+
+      const info = await this.ytDlpService.getVideoInfo(videoId);
+      const filename = sanitizeFilename(`${info.title}.${format}`);
+      const filePath = path.join(DOWNLOADS_DIR, `${downloadId}_${filename}`);
+
+      this.updateProgress(downloadId, {
+        status: 'downloading',
+        progress: 0,
+        filePath
+      });
+
+      await this.processDownload(downloadId, videoId, format, quality, filePath);
+    } catch (error) {
+      logger.error({ error, downloadId, videoId }, 'Failed to initialize download');
+      this.updateProgress(downloadId, {
+        status: 'failed',
+        progress: 0,
+        error: error instanceof Error ? error.message : 'Failed to prepare download'
+      });
+    }
   }
 
   getProgress(downloadId: string): DownloadProgress | null {
