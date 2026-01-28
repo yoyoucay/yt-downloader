@@ -12,31 +12,40 @@ interface ProgressBarProps {
 
 export function ProgressBar({ percent, downloaded, total, speed, eta }: ProgressBarProps) {
   return (
-    <div className="space-y-3 p-6 bg-gray-50 dark:bg-gray-800 rounded-xl">
+    <div className="space-y-3 p-5 bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800 rounded-xl">
       <div className="flex items-center justify-between text-sm">
         <div className="flex items-center gap-2">
-          <Download className="w-4 h-4 text-red-600 animate-bounce" />
-          <span className="font-medium text-gray-900 dark:text-white">Downloading...</span>
+          <div className="relative">
+            <Download className="w-4 h-4 text-indigo-600 dark:text-indigo-400 animate-bounce" />
+          </div>
+          <span className="font-medium text-zinc-900 dark:text-zinc-100">Downloading</span>
         </div>
-        <span className="font-bold text-red-600">{percent.toFixed(1)}%</span>
+        <span className="font-semibold text-indigo-600 dark:text-indigo-400 tabular-nums">
+          {percent.toFixed(1)}%
+        </span>
       </div>
       
-      <div className="relative w-full h-3 bg-gray-300 dark:bg-gray-700 rounded-full overflow-hidden">
+      {/* Progress Track */}
+      <div className="relative w-full h-2 bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden">
         <div
-          className="absolute h-full bg-gradient-to-r from-red-500 to-red-600 transition-all duration-300 ease-out"
+          className="absolute h-full bg-gradient-to-r from-indigo-600 via-indigo-500 to-violet-600 transition-all duration-300 ease-out rounded-full"
           style={{ width: `${percent}%` }}
         >
-          <div className="absolute inset-0 bg-white/20 animate-pulse" />
+          {/* Shimmer effect */}
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-pulse" />
         </div>
       </div>
 
+      {/* Metadata */}
       {(downloaded || speed || eta) && (
-        <div className="flex justify-between text-xs text-gray-600 dark:text-gray-400">
+        <div className="flex justify-between text-[11px] text-zinc-600 dark:text-zinc-400 font-medium tabular-nums">
           {downloaded && total && (
             <span>{downloaded} / {total}</span>
           )}
-          {speed && <span>{speed}</span>}
-          {eta && <span>ETA: {eta}</span>}
+          <div className="flex gap-3">
+            {speed && <span>{speed}</span>}
+            {eta && <span>ETA {eta}</span>}
+          </div>
         </div>
       )}
     </div>

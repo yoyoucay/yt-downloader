@@ -13,38 +13,55 @@
 
 body {
   font-family: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
-  background-color: light-dark(#f9fafb, #111827);
-  color: light-dark(#111827, #f9fafb);
+  background-color: light-dark(#fafafa, #09090b);
+  color: light-dark(#18181b, #fafafa);
 }
 
 html {
   scroll-behavior: smooth;
 }
 
-/* Custom scrollbar */
+/* Custom scrollbar - subtle and minimal */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: light-dark(#f1f1f1, #1f2937);
+  background: light-dark(#f4f4f5, #18181b);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: light-dark(#888, #4b5563);
-  border-radius: 4px;
+  background: light-dark(#d4d4d8, #3f3f46);
+  border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: light-dark(#555, #6b7280);
+  background: light-dark(#a1a1aa, #52525b);
 }
 
-/* Animations */
+/* Smooth transitions for theme switching */
+* {
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+/* Remove transition from specific elements to prevent flicker */
+input, textarea, select, button {
+  transition: background-color 0.15s ease, border-color 0.15s ease, 
+              color 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
+}
+
+/* Focus visible for accessibility */
+:focus-visible {
+  outline: 2px solid #6366f1;
+  outline-offset: 2px;
+}
+
+/* Refined animations */
 @keyframes fadeIn {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(8px);
   }
   to {
     opacity: 1;
@@ -52,14 +69,36 @@ html {
   }
 }
 
-.animate-fade-in {
-  animation: fadeIn 0.3s ease-out;
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
-/* Line clamp utilities */
-.line-clamp-2 {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.animate-slide-in {
+  animation: slideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
