@@ -172,12 +172,19 @@ export default function Home() {
   return (
     <ErrorBoundary>
       <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-        <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-          
-          {/* Hero Header */}
+        <main className="min-h-screen w-full max-w-3xl py-32 flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
+
           <div className="flex items-center gap-2.5">
             <div className="relative">
-              <Youtube className="w-10 h-10 sm:w-12 sm:h-12 text-indigo-600 dark:text-indigo-400" />
+              <svg 
+                role="img" 
+                viewBox="0 0 24 24" 
+                xmlns="http://www.w3.org/2000/svg"
+                className="w-8 h-8 fill-red-600 dark:fill-red-500"
+              >
+                <title>YouTube</title>
+                <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
+              </svg>
               <Sparkles className="w-4 h-4 text-indigo-400 dark:text-indigo-500 absolute -top-1 -right-1" />
             </div>
             <h1 className="text-4xl sm:text-5xl font-bold bg-gradient-to-br from-zinc-900 via-zinc-700 to-zinc-900 dark:from-zinc-100 dark:via-zinc-300 dark:to-zinc-100 bg-clip-text text-transparent tracking-tight">
@@ -185,18 +192,15 @@ export default function Home() {
             </h1>
           </div>
 
-          {/* Main Content Area */}
           <div className="flex flex-col gap-6 w-full sm:text-left">
             <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
               Download YouTube videos and audio with ease. High-quality MP3 and MP4 formats with real-time progress tracking.
             </p>
 
-            {/* Search Section */}
             <div className="w-full">
               <SearchBar onSearch={handleSearch} isLoading={isSearching} />
             </div>
 
-            {/* Loading State */}
             {isSearching && (
               <div className="flex flex-col justify-center items-center py-8">
                 <div className="relative">
@@ -207,7 +211,6 @@ export default function Home() {
               </div>
             )}
 
-            {/* Error Alert */}
             {error && (
               <div className="p-4 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 rounded-xl flex items-start gap-3">
                 <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />

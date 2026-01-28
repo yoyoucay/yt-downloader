@@ -5,12 +5,6 @@
   --font-family-mono: var(--font-geist-mono);
 }
 
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
 body {
   font-family: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
   background-color: light-dark(#fafafa, #09090b);
