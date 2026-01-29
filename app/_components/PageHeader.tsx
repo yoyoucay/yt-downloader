@@ -2,7 +2,7 @@ import { Sparkles } from 'lucide-react';
 
 export function PageHeader() {
   return (
-    <div className="flex items-center gap-2.5">
+    <div className="flex items-center gap-2.5 py-4 sm:py-6 justify-center sm:justify-start">
       <div className="relative">
         <svg 
           role="img" 
