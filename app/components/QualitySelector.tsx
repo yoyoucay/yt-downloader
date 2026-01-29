@@ -10,12 +10,12 @@ interface QualitySelectorProps {
 }
 
 export function QualitySelector({ format, selected, onChange, availableQualities }: QualitySelectorProps) {
-  const defaultQualities = format === 'mp4' 
-    ? ['144p', '240p', '360p', '480p', '720p', '1080p', '1440p', '2160p']
-    : ['128kbps', '192kbps', '256kbps', '320kbps'];
+  const defaultQualities = format === 'mp4'
+    ? ['No quality']
+    : ['No quality'];
 
-  const qualities = availableQualities && availableQualities.length > 0 
-    ? availableQualities 
+  const qualities = availableQualities && availableQualities.length > 0
+    ? availableQualities
     : defaultQualities;
 
   return (
@@ -38,7 +38,7 @@ export function QualitySelector({ format, selected, onChange, availableQualities
         <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 dark:text-zinc-400 pointer-events-none" />
       </div>
       <p className="text-[11px] text-zinc-500 dark:text-zinc-500">
-        {availableQualities && availableQualities.length > 0 
+        {availableQualities && availableQualities.length > 0
           ? `Available qualities for this video`
           : `Standard ${format.toUpperCase()} qualities`}
       </p>
