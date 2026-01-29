@@ -11,8 +11,8 @@ interface QualitySelectorProps {
 
 export function QualitySelector({ format, selected, onChange, availableQualities }: QualitySelectorProps) {
   const defaultQualities = format === 'mp4'
-    ? ['No quality']
-    : ['No quality'];
+    ? ['1080p', '720p']
+    : ['320kbps', '128kbps'];
 
   const qualities = availableQualities && availableQualities.length > 0
     ? availableQualities
@@ -40,7 +40,7 @@ export function QualitySelector({ format, selected, onChange, availableQualities
       <p className="text-[11px] text-zinc-500 dark:text-zinc-500">
         {availableQualities && availableQualities.length > 0
           ? `Available qualities for this video`
-          : `Standard ${format.toUpperCase()} qualities`}
+          : `Default ${format.toUpperCase()} qualities`}
       </p>
     </div>
   );

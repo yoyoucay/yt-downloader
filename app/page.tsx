@@ -6,19 +6,19 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { VideoResult } from '@/lib/types';
 import { apiClient } from '@/lib/api-client';
 
-// Page-specific components
 import { PageHeader } from './_components/PageHeader';
 import { LoadingState } from './_components/LoadingState';
 import { ErrorDisplay } from './_components/ErrorDisplay';
 import { SearchResultsList } from './_components/SearchResultsList';
 import { DownloadPanel } from './_components/DownloadPanel';
 import { EmptyState } from './_components/EmptyState';
+import { sanitizeFilename, ensureExtension } from '@/lib/utils/sanitize-filename';
 
 export default function Home() {
   const [searchResults, setSearchResults] = useState<VideoResult[]>([]);
   const [selectedVideo, setSelectedVideo] = useState<VideoResult | null>(null);
   const [format, setFormat] = useState<'mp3' | 'mp4'>('mp4');
-  const [quality, setQuality] = useState('720p');
+  const [quality, setQuality] = useState('1080p');
   const [isSearching, setIsSearching] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState(0);
@@ -30,20 +30,25 @@ export default function Home() {
   const [statusMessage, setStatusMessage] = useState<string>('');
   const [downloadId, setDownloadId] = useState<string | null>(null);
 
-  // Check if quality options are available
   const availableQualities = selectedVideo?.availableFormats
     ? format === 'mp4'
       ? selectedVideo.availableFormats.video
       : selectedVideo.availableFormats.audio
     : undefined;
 
-  const hasValidQuality = !!(availableQualities && availableQualities.length > 0 && quality !== 'No quality');
+  // Always have valid quality - use defaults if backend doesn't provide any
+  const defaultQualities = format === 'mp4' ? ['1080p', '720p'] : ['320kbps', '128kbps'];
+  const qualities = availableQualities && availableQualities.length > 0
+    ? availableQualities
+    : defaultQualities;
+
+  const hasValidQuality = Boolean(quality && quality !== 'No quality');
 
   useEffect(() => {
     if (format === 'mp4') {
-      setQuality('720p');
+      setQuality('1080p');
     } else {
-      setQuality('192kbps');
+      setQuality('320kbps');
     }
   }, [format]);
 
@@ -55,8 +60,6 @@ export default function Home() {
 
     try {
       const data = await apiClient.search(query);
-
-      console.log({data})
 
       if (data.videos && data.videos.length > 0) {
         setSearchResults(data.videos);
@@ -126,10 +129,19 @@ export default function Home() {
   const downloadFile = async (id: string) => {
     try {
       const { blob, filename } = await apiClient.downloadFile(id);
+      // Get the filename from backend or use video title as fallback
+      let safeFilename = filename || selectedVideo?.title || 'download';
+      // Sanitize the filename (remove emojis, invalid chars)
+      safeFilename = sanitizeFilename(safeFilename);
+
+      // Ensure it has the correct extension (.mp3 or .mp4)
+      safeFilename = ensureExtension(safeFilename, format);
+
+      // Rest of download logic...
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = filename || selectedVideo?.title || 'download';
+      a.download = safeFilename;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -171,7 +183,7 @@ export default function Home() {
 
             {error && <ErrorDisplay message={error} />}
 
-            <SearchResultsList 
+            <SearchResultsList
               results={searchResults}
               selectedVideo={selectedVideo}
               onSelectVideo={setSelectedVideo}

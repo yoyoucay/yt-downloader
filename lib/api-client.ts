@@ -53,22 +53,30 @@ class ApiClient {
    */
   private extractFilename(response: Response): string {
     const contentDisposition = response.headers.get('content-disposition');
+    
+    console.log('Content-Disposition header:', contentDisposition); // DEBUG
+    
     if (contentDisposition) {
       // Try to extract filename from: attachment; filename="video.mp4"
       const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
       if (filenameMatch && filenameMatch[1]) {
-        return filenameMatch[1].replace(/['"]/g, '');
+        const extracted = filenameMatch[1].replace(/['"]/g, '');
+        console.log('Extracted filename:', extracted); // DEBUG
+        return extracted;
       }
       
       // Try UTF-8 encoding: filename*=UTF-8''video.mp4
       const filenameStarMatch = contentDisposition.match(/filename\*=UTF-8''(.+)/);
       if (filenameStarMatch && filenameStarMatch[1]) {
-        return decodeURIComponent(filenameStarMatch[1]);
+        const extracted = decodeURIComponent(filenameStarMatch[1]);
+        console.log('Extracted UTF-8 filename:', extracted); // DEBUG
+        return extracted;
       }
     }
     
+    console.log('No filename found in headers, returning fallback'); // DEBUG
     // Fallback to generic name
-    return 'download';
+    return '';
   }
 
   /**
