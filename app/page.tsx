@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { SearchBar } from './components/SearchBar';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { VideoResult } from '@/lib/types';
@@ -29,6 +29,9 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string>('');
   const [downloadId, setDownloadId] = useState<string | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const isPollingRef = useRef(false);
+  const searchAbortRef = useRef<AbortController | null>(null);
 
   const availableQualities = selectedVideo?.availableFormats
     ? format === 'mp4'
@@ -52,14 +55,25 @@ export default function Home() {
     }
   }, [format]);
 
+  useEffect(() => {
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      if (searchAbortRef.current) searchAbortRef.current.abort();
+    };
+  }, []);
+
   const handleSearch = async (query: string) => {
+    if (searchAbortRef.current) searchAbortRef.current.abort();
+    const controller = new AbortController();
+    searchAbortRef.current = controller;
+
     setIsSearching(true);
     setError(null);
     setSearchResults([]);
     setSelectedVideo(null);
 
     try {
-      const data = await apiClient.search(query);
+      const data = await apiClient.search(query, controller.signal);
 
       if (data.videos && data.videos.length > 0) {
         setSearchResults(data.videos);
@@ -68,8 +82,8 @@ export default function Home() {
         setError('No videos found. Try a different search term.');
       }
     } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') return;
       setError(err instanceof Error ? err.message : 'Failed to search');
-      console.error('Search error:', err);
     } finally {
       setIsSearching(false);
     }
@@ -98,30 +112,53 @@ export default function Home() {
     }
   };
 
-  const pollProgress = async (id: string) => {
-    const interval = setInterval(async () => {
-      try {
-        const progress = await apiClient.getProgress(id);
+  const pollProgress = (id: string) => {
+    const MAX_RETRIES = 120;
+    let retries = 0;
 
+    intervalRef.current = setInterval(async () => {
+      if (isPollingRef.current) return;
+      isPollingRef.current = true;
+
+      const stopPolling = () => {
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
+        }
+      };
+
+      try {
+        retries++;
+        if (retries > MAX_RETRIES) {
+          stopPolling();
+          setError('Download timed out. Please try again.');
+          setIsDownloading(false);
+          setStatusMessage('');
+          return;
+        }
+
+        const progress = await apiClient.getProgress(id);
         setDownloadProgress(progress.progress);
         setStatusMessage(`${progress.status}: ${progress.progress}%`);
 
         if (progress.status === 'completed') {
-          clearInterval(interval);
+          stopPolling();
           setStatusMessage('Download complete! Preparing file...');
           await downloadFile(id);
         } else if (progress.status === 'failed') {
-          clearInterval(interval);
+          stopPolling();
           setError(`Download failed: ${progress.error}`);
           setIsDownloading(false);
           setStatusMessage('');
         }
       } catch (error) {
-        clearInterval(interval);
+        stopPolling();
         setError('Failed to check download progress');
         setIsDownloading(false);
         setStatusMessage('');
         console.error('Progress poll error:', error);
+      } finally {
+        isPollingRef.current = false;
       }
     }, 1000);
   };

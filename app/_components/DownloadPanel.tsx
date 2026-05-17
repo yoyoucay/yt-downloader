@@ -51,12 +51,13 @@ export function DownloadPanel({
 
       {/* Format & Quality Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-        <FormatSelector selected={format} onChange={onFormatChange} />
+        <FormatSelector selected={format} onChange={onFormatChange} disabled={isDownloading} />
         <QualitySelector
           format={format}
           selected={quality}
           onChange={onQualityChange}
           availableQualities={availableQualities}
+          disabled={isDownloading}
         />
       </div>
 

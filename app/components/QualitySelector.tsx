@@ -7,9 +7,10 @@ interface QualitySelectorProps {
   selected: string;
   onChange: (quality: string) => void;
   availableQualities?: string[];
+  disabled?: boolean;
 }
 
-export function QualitySelector({ format, selected, onChange, availableQualities }: QualitySelectorProps) {
+export function QualitySelector({ format, selected, onChange, availableQualities, disabled }: QualitySelectorProps) {
   const defaultQualities = format === 'mp4'
     ? ['1080p', '720p']
     : ['320kbps', '128kbps'];
@@ -27,7 +28,8 @@ export function QualitySelector({ format, selected, onChange, availableQualities
         <select
           value={selected}
           onChange={(e) => onChange(e.target.value)}
-          className="w-full h-11 px-3.5 pr-9 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg text-zinc-900 dark:text-zinc-100 text-sm font-medium appearance-none cursor-pointer hover:border-zinc-300 dark:hover:border-zinc-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all shadow-sm"
+          disabled={disabled}
+          className="w-full h-11 px-3.5 pr-9 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg text-zinc-900 dark:text-zinc-100 text-sm font-medium appearance-none cursor-pointer hover:border-zinc-300 dark:hover:border-zinc-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all shadow-sm disabled:cursor-not-allowed disabled:opacity-50"
         >
           {qualities.map((quality) => (
             <option key={quality} value={quality}>

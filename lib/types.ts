@@ -25,14 +25,9 @@ export interface PlaylistVideo {
 }
 
 export interface DownloadProgress {
-  status: 'starting' | 'preparing' | 'downloading' | 'complete' | 'error';
-  message?: string;
-  percent: number;
-  downloaded?: string;
-  total?: string;
-  speed?: string;
-  eta?: string;
-  downloadUrl?: string;
-  filename?: string;
-  filepath?: string;
+  downloadId: string;
+  status: 'pending' | 'downloading' | 'completed' | 'failed';
+  progress: number;
+  error: string | null;
+  filePath: string | null;
 }

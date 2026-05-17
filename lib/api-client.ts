@@ -3,7 +3,7 @@
  * Uses NEXT_PUBLIC_API_URL environment variable
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
 interface ApiError {
   error: string;
@@ -54,28 +54,20 @@ class ApiClient {
   private extractFilename(response: Response): string {
     const contentDisposition = response.headers.get('content-disposition');
     
-    console.log('Content-Disposition header:', contentDisposition); // DEBUG
-    
     if (contentDisposition) {
-      // Try to extract filename from: attachment; filename="video.mp4"
-      const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
-      if (filenameMatch && filenameMatch[1]) {
-        const extracted = filenameMatch[1].replace(/['"]/g, '');
-        console.log('Extracted filename:', extracted); // DEBUG
-        return extracted;
-      }
-      
-      // Try UTF-8 encoding: filename*=UTF-8''video.mp4
+      // Try UTF-8 first: filename*=UTF-8''video.mp4
       const filenameStarMatch = contentDisposition.match(/filename\*=UTF-8''(.+)/);
       if (filenameStarMatch && filenameStarMatch[1]) {
-        const extracted = decodeURIComponent(filenameStarMatch[1]);
-        console.log('Extracted UTF-8 filename:', extracted); // DEBUG
-        return extracted;
+        return decodeURIComponent(filenameStarMatch[1]);
+      }
+
+      // Fallback: attachment; filename="video.mp4"
+      const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+      if (filenameMatch && filenameMatch[1]) {
+        return filenameMatch[1].replace(/['"]/g, '');
       }
     }
-    
-    console.log('No filename found in headers, returning fallback'); // DEBUG
-    // Fallback to generic name
+
     return '';
   }
 
@@ -83,13 +75,14 @@ class ApiClient {
    * Search for YouTube videos
    * @param query - Search term or YouTube URL
    */
-  async search(query: string) {
+  async search(query: string, signal?: AbortSignal) {
     const url = `${this.baseUrl}/api/search?q=${encodeURIComponent(query)}`;
     const response = await fetch(url, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
       },
+      signal: signal ?? AbortSignal.timeout(15000),
     });
 
     return this.handleResponse<{
@@ -141,6 +134,7 @@ class ApiClient {
       headers: {
         'Content-Type': 'application/json',
       },
+      signal: AbortSignal.timeout(10000),
     });
 
     return this.handleResponse<{
