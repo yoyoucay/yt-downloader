@@ -1,6 +1,5 @@
-﻿'use client';
+'use client';
 
-import { Search } from 'lucide-react';
 import { useState } from 'react';
 
 interface SearchBarProps {
@@ -19,28 +18,32 @@ export function SearchBar({ onSearch, isLoading }: SearchBarProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="w-full max-w-2xl mx-auto">
-      <div className="relative group">
-        <div className="absolute inset-0 bg-gradient-to-r from-indigo-500 to-violet-500 rounded-2xl opacity-0 group-focus-within:opacity-100 blur transition-opacity duration-300" />
-        <div className="relative">
+    <div className="s7-search-wrap">
+      <div className="s7-search-label">
+        <span>// 01 &nbsp; QUERY INPUT</span>
+        <span className="right">URL / TITLE / CHANNEL</span>
+      </div>
+      <form onSubmit={handleSubmit}>
+        <div className="s7-search-frame">
+          <div className="s7-search-prompt">&gt;_</div>
           <input
             name="searchContent"
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search YouTube or paste URL..."
-            className="w-full h-14 px-5 pr-14 text-base rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 placeholder-zinc-500 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+            placeholder="paste URL or search title..."
+            className="s7-search-input"
             disabled={isLoading}
           />
           <button
             type="submit"
             disabled={isLoading || !query.trim()}
-            className="absolute right-1.5 top-1/2 -translate-y-1/2 h-11 w-11 flex items-center justify-center bg-gradient-to-b from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 disabled:from-zinc-300 disabled:to-zinc-400 dark:disabled:from-zinc-700 dark:disabled:to-zinc-800 text-white rounded-lg transition-all disabled:cursor-not-allowed shadow-md shadow-indigo-600/25 disabled:shadow-none active:scale-95"
+            className="s7-search-btn"
           >
-            <Search className="w-5 h-5" />
+            {isLoading ? 'SCANNING...' : 'EXECUTE'}
           </button>
         </div>
-      </div>
-    </form>
+      </form>
+    </div>
   );
 }

@@ -1,21 +1,21 @@
-﻿import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import type { Metadata } from "next";
+import { JetBrains_Mono, VT323 } from "next/font/google";
 import "./globals.css";
-import { ThemeProvider } from "./components/ThemeProvider";
-import { ThemeToggle } from "./components/ThemeToggle";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const jetbrainsMono = JetBrains_Mono({
+  variable: "--font-jetbrains-mono",
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const vt323 = VT323({
+  variable: "--font-vt323",
   subsets: ["latin"],
+  weight: ["400"],
 });
 
 export const metadata: Metadata = {
-  title: "YouTube Downloader - Download MP3 & MP4",
+  title: "SECTOR 7 — Video & Audio Vault",
   description: "Download YouTube videos in MP3 or MP4 format with real-time progress tracking",
 };
 
@@ -25,19 +25,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        <ThemeProvider>
-          {/* Theme Toggle - Responsive positioning */}
-          <div className="fixed top-4 right-4 sm:top-6 sm:right-6 lg:top-8 lg:right-8 z-50">
-            <ThemeToggle />
-          </div>
-          
-          {/* Main Content */}
-          {children}
-        </ThemeProvider>
+    <html lang="en">
+      <body className={`${jetbrainsMono.variable} ${vt323.variable}`}>
+        {children}
       </body>
     </html>
   );

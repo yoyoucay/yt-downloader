@@ -1,27 +1,25 @@
-﻿'use client';
+'use client';
 
 import { VideoResult } from '@/lib/types';
-import { Clock, User, CheckCircle2 } from 'lucide-react';
 import Image from 'next/image';
 
 interface VideoCardProps {
   video: VideoResult;
   onSelect: (video: VideoResult) => void;
   isSelected?: boolean;
+  index: number;
 }
 
-export function VideoCard({ video, onSelect, isSelected }: VideoCardProps) {
+export function VideoCard({ video, onSelect, isSelected, index }: VideoCardProps) {
+  const qualities = video.availableFormats?.video ?? [];
+  const topQuality = qualities[0];
+
   return (
-    <div
+    <article
       onClick={() => onSelect(video)}
-      className={`cursor-pointer rounded-xl overflow-hidden transition-all duration-200 border ${
-        isSelected
-          ? 'ring-2 ring-indigo-500 shadow-xl shadow-indigo-500/20 scale-[1.02] border-indigo-200 dark:border-indigo-900 bg-white dark:bg-zinc-900'
-          : 'hover:shadow-lg hover:scale-[1.01] border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm'
-      }`}
+      className={`s7-card${isSelected ? ' selected' : ''}`}
     >
-      {/* Thumbnail */}
-      <div className="relative aspect-video bg-zinc-100 dark:bg-zinc-800">
+      <div className="s7-thumb">
         <Image
           src={video.thumbnail}
           alt={video.title}
@@ -29,29 +27,26 @@ export function VideoCard({ video, onSelect, isSelected }: VideoCardProps) {
           className="object-cover"
           unoptimized
         />
-        {/* Duration Badge */}
-        <div className="absolute bottom-2 right-2 bg-black/90 backdrop-blur-sm text-white text-xs px-2 py-1 rounded-md flex items-center gap-1 font-medium">
-          <Clock className="w-3 h-3" />
-          {video.duration}
-        </div>
-        {/* Selected Indicator */}
-        {isSelected && (
-          <div className="absolute top-2 right-2 bg-indigo-600 text-white rounded-full p-1 shadow-lg">
-            <CheckCircle2 className="w-4 h-4" />
-          </div>
-        )}
+        <span className="s7-duration">{video.duration}</span>
       </div>
-      
-      {/* Content */}
-      <div className="p-4">
-        <h3 className="font-medium text-zinc-900 dark:text-zinc-100 line-clamp-2 mb-2 text-sm leading-snug">
-          {video.title}
-        </h3>
-        <div className="flex items-center gap-1.5 text-xs text-zinc-600 dark:text-zinc-400">
-          <User className="w-3.5 h-3.5" />
-          <span className="truncate">{video.channel}</span>
+
+      <div className="s7-card-body">
+        <div className="s7-card-title">{video.title}</div>
+        <div className="s7-card-meta">
+          <span><span className="k">CH</span>{video.channel}</span>
+        </div>
+        <div className="s7-card-tags">
+          {topQuality && <span className="s7-tag cyan">{topQuality}</span>}
+          {isSelected && <span className="s7-tag pink">SELECTED</span>}
+          {qualities.some(q => q.includes('320')) && (
+            <span className="s7-tag gold">320KBPS</span>
+          )}
         </div>
       </div>
-    </div>
+
+      <div className="s7-card-id">
+        REF<span className="num">{String(index + 1).padStart(2, '0')}</span>
+      </div>
+    </article>
   );
 }

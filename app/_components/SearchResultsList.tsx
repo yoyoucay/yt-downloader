@@ -12,16 +12,20 @@ export function SearchResultsList({ results, selectedVideo, onSelectVideo }: Sea
 
   return (
     <div>
-      <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100 mb-4">
-        Search Results
-      </h2>
-      <div className="space-y-3">
-        {results.map((video) => (
+      <div className="s7-section-head">
+        <h2>// 02 &nbsp; INDEX RESULTS</h2>
+        <span className="s7-badge">{String(results.length).padStart(2, '0')} HITS</span>
+        <div className="s7-rule" />
+        <span className="s7-sort-label">SORT · RELEVANCE</span>
+      </div>
+      <div className="s7-results" style={{ paddingLeft: '28px' }}>
+        {results.map((video, i) => (
           <VideoCard
             key={video.id}
             video={video}
             onSelect={onSelectVideo}
             isSelected={selectedVideo?.id === video.id}
+            index={i}
           />
         ))}
       </div>
